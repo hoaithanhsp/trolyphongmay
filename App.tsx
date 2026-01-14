@@ -9,6 +9,7 @@ import { STATUS_LABELS, VIOLATION_TYPES, MOCK_STUDENTS, formatDate, formatDateTi
 import { read, utils } from 'xlsx';
 import { Button } from './components/Button';
 import { exportAllStatistics } from './services/exportService';
+import { LoginModal } from './components/LoginModal';
 
 // Initialize data
 storageService.init();
@@ -40,6 +41,22 @@ const App: React.FC = () => {
   // Class Statistics Modal State
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
   const [statsClass, setStatsClass] = useState<string | null>(null);
+
+  // Login State
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    return localStorage.getItem('labmanager_logged_in') === 'true';
+  });
+  const [loggedUser, setLoggedUser] = useState(() => {
+    return localStorage.getItem('labmanager_username') || '';
+  });
+
+  // Add/Edit Computer Modal State
+  const [isAddComputerModalOpen, setIsAddComputerModalOpen] = useState(false);
+  const [editingComputer, setEditingComputer] = useState<Computer | null>(null);
+  const [computerIdInput, setComputerIdInput] = useState('');
+  const [computerNameInput, setComputerNameInput] = useState('');
+  const [computerLocationInput, setComputerLocationInput] = useState('');
+  const [computerSpecsInput, setComputerSpecsInput] = useState('');
 
   // Form states for Quick Violation
   const [quickViolationStudent, setQuickViolationStudent] = useState('');
@@ -261,6 +278,73 @@ const App: React.FC = () => {
     }
   };
 
+  // Login handlers
+  const handleLogin = (username: string) => {
+    setIsLoggedIn(true);
+    setLoggedUser(username);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('labmanager_logged_in');
+    localStorage.removeItem('labmanager_username');
+    setIsLoggedIn(false);
+    setLoggedUser('');
+  };
+
+  // Computer management handlers
+  const handleAddComputer = () => {
+    setEditingComputer(null);
+    setComputerIdInput('');
+    setComputerNameInput('');
+    setComputerLocationInput('');
+    setComputerSpecsInput('');
+    setIsAddComputerModalOpen(true);
+  };
+
+  const handleEditComputerModal = (comp: Computer) => {
+    setEditingComputer(comp);
+    setComputerIdInput(comp.id);
+    setComputerNameInput(comp.name);
+    setComputerLocationInput(comp.location);
+    setComputerSpecsInput(comp.specs || '');
+    setIsAddComputerModalOpen(true);
+  };
+
+  const handleDeleteComputer = (id: string) => {
+    if (window.confirm("Bạn có chắc chắn muốn xóa máy tính này?")) {
+      storageService.deleteComputer(id);
+      refreshData();
+    }
+  };
+
+  const handleSaveComputer = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!computerIdInput.trim() || !computerNameInput.trim()) return;
+
+    if (editingComputer) {
+      // Update existing computer
+      storageService.updateComputer({
+        ...editingComputer,
+        id: computerIdInput,
+        name: computerNameInput,
+        location: computerLocationInput,
+        specs: computerSpecsInput
+      });
+    } else {
+      // Add new computer
+      const newComputer: Computer = {
+        id: computerIdInput,
+        name: computerNameInput,
+        location: computerLocationInput,
+        specs: computerSpecsInput,
+        status: ComputerStatus.WORKING
+      };
+      storageService.addComputer(newComputer);
+    }
+    setIsAddComputerModalOpen(false);
+    refreshData();
+  };
+
   // Stats
   const stats = {
     total: computers.length,
@@ -395,6 +479,14 @@ const App: React.FC = () => {
                 <p className="text-[10px] text-white/60 leading-tight">Số 1 Mạc Đĩnh Chi, P. Phú Lợi, TP. Cần Thơ</p>
               </div>
             </div>
+            {/* Logo */}
+            <div className="mt-4 flex justify-center">
+              <img
+                src="/logo_thoa.jpg"
+                alt="Logo"
+                className="w-24 h-24 object-contain rounded-lg"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -483,7 +575,11 @@ const App: React.FC = () => {
           <p className="text-textSecondary text-sm font-normal">Quản lý và giám sát tình trạng máy tính tại Phòng máy 01.</p>
         </div>
         <div className="flex gap-3">
-          <button onClick={() => window.print()} className="flex items-center gap-2 rounded-lg h-11 px-5 bg-primary text-white text-sm font-bold shadow-sm hover:bg-blue-600 transition-colors">
+          <button onClick={handleAddComputer} className="flex items-center gap-2 rounded-lg h-11 px-5 bg-primary text-white text-sm font-bold shadow-sm hover:bg-blue-600 transition-colors">
+            <span className="material-symbols-outlined">add</span>
+            <span>Thêm máy</span>
+          </button>
+          <button onClick={() => window.print()} className="flex items-center gap-2 rounded-lg h-11 px-4 bg-white border border-border text-textPrimary text-sm font-bold hover:bg-gray-50 transition-colors">
             <span className="material-symbols-outlined">qr_code_scanner</span>
             <span>In QR Code</span>
           </button>
@@ -501,6 +597,7 @@ const App: React.FC = () => {
               <tr className="bg-gray-50 border-b border-border">
                 <th className="px-6 py-4 text-xs font-bold text-textSecondary uppercase tracking-wider">Mã máy</th>
                 <th className="px-6 py-4 text-xs font-bold text-textSecondary uppercase tracking-wider">Vị trí</th>
+                <th className="px-6 py-4 text-xs font-bold text-textSecondary uppercase tracking-wider">Cấu hình</th>
                 <th className="px-6 py-4 text-xs font-bold text-textSecondary uppercase tracking-wider">Học sinh</th>
                 <th className="px-6 py-4 text-xs font-bold text-textSecondary uppercase tracking-wider">Trạng thái</th>
                 <th className="px-6 py-4 text-xs font-bold text-textSecondary uppercase tracking-wider text-right">Thao tác</th>
@@ -508,9 +605,10 @@ const App: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-border">
               {computers.map(comp => (
-                <tr key={comp.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => handleComputerClick(comp)}>
+                <tr key={comp.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 font-bold text-textPrimary">{comp.id}</td>
                   <td className="px-6 py-4 text-textSecondary">{comp.location}</td>
+                  <td className="px-6 py-4 text-textSecondary text-sm">{comp.specs || 'Chưa cập nhật'}</td>
                   <td className="px-6 py-4">
                     {comp.assignedStudentName ? (
                       <span className="font-semibold text-primary">{comp.assignedStudentName}</span>
@@ -530,7 +628,15 @@ const App: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button className="text-primary font-bold text-sm hover:underline">Chi tiết</button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button onClick={() => handleComputerClick(comp)} className="text-primary font-bold text-sm hover:underline">Chi tiết</button>
+                      <button onClick={(e) => { e.stopPropagation(); handleEditComputerModal(comp); }} className="text-gray-500 hover:bg-gray-100 p-2 rounded" title="Sửa">
+                        <span className="material-symbols-outlined text-xl">edit</span>
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); handleDeleteComputer(comp.id); }} className="text-danger hover:bg-red-50 p-2 rounded" title="Xóa">
+                        <span className="material-symbols-outlined text-xl">delete</span>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -821,10 +927,21 @@ const App: React.FC = () => {
             <div className="h-8 w-[1px] bg-gray-200 mx-2"></div>
             <div className="flex items-center gap-3">
               <div className="flex flex-col items-end hidden sm:flex">
-                <span className="text-sm font-semibold">Admin</span>
-                <span className="text-xs text-textSecondary">Giáo viên</span>
+                <span className="text-sm font-semibold">{loggedUser || 'Giáo viên'}</span>
+                <span className="text-xs text-textSecondary">Đã đăng nhập</span>
               </div>
-              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold border border-border">A</div>
+              <img
+                src="/avatar_thoa.jpg"
+                alt="Avatar"
+                className="w-10 h-10 rounded-full object-cover border-2 border-primary/30"
+              />
+              <button
+                onClick={handleLogout}
+                className="text-gray-500 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                title="Đăng xuất"
+              >
+                <span className="material-symbols-outlined">logout</span>
+              </button>
             </div>
           </div>
         </header>
@@ -1014,8 +1131,70 @@ const App: React.FC = () => {
             </div>
           );
         })()}
+
+        {/* Add/Edit Computer Modal */}
+        {isAddComputerModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+              <div className="px-6 py-4 border-b border-border flex justify-between items-center">
+                <h3 className="font-bold text-xl">{editingComputer ? 'Sửa thông tin máy' : 'Thêm máy mới'}</h3>
+                <button onClick={() => setIsAddComputerModalOpen(false)}>
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+              <form onSubmit={handleSaveComputer} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-textPrimary mb-1">Mã máy <span className="text-red-500">*</span></label>
+                  <input
+                    value={computerIdInput}
+                    onChange={e => setComputerIdInput(e.target.value)}
+                    className="w-full border border-border rounded-lg p-2.5 focus:ring-2 focus:ring-primary focus:outline-none"
+                    placeholder="VD: M01"
+                    required
+                    disabled={!!editingComputer}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-textPrimary mb-1">Tên máy <span className="text-red-500">*</span></label>
+                  <input
+                    value={computerNameInput}
+                    onChange={e => setComputerNameInput(e.target.value)}
+                    className="w-full border border-border rounded-lg p-2.5 focus:ring-2 focus:ring-primary focus:outline-none"
+                    placeholder="VD: Máy 01"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-textPrimary mb-1">Vị trí</label>
+                  <input
+                    value={computerLocationInput}
+                    onChange={e => setComputerLocationInput(e.target.value)}
+                    className="w-full border border-border rounded-lg p-2.5 focus:ring-2 focus:ring-primary focus:outline-none"
+                    placeholder="VD: Hàng 1 - Cột 1"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-textPrimary mb-1">Cấu hình</label>
+                  <input
+                    value={computerSpecsInput}
+                    onChange={e => setComputerSpecsInput(e.target.value)}
+                    className="w-full border border-border rounded-lg p-2.5 focus:ring-2 focus:ring-primary focus:outline-none"
+                    placeholder="VD: Core i5, 8GB RAM, SSD 256GB"
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <button type="button" onClick={() => setIsAddComputerModalOpen(false)} className="px-4 py-2 rounded-lg border border-border font-medium hover:bg-gray-50">Hủy</button>
+                  <button type="submit" className="px-4 py-2 rounded-lg bg-primary text-white font-bold hover:bg-blue-600 shadow-sm">Lưu</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
       <PrintableQRGrid computers={computers} />
+
+      {/* Login Modal */}
+      {!isLoggedIn && <LoginModal onLogin={handleLogin} />}
     </>
   );
 };
