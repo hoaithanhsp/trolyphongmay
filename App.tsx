@@ -8,6 +8,7 @@ import { PrintableQRGrid } from './components/PrintableQRGrid';
 import { STATUS_LABELS, VIOLATION_TYPES, MOCK_STUDENTS, formatDate, formatDateTime } from './constants';
 import { read, utils } from 'xlsx';
 import { Button } from './components/Button';
+import { exportAllStatistics } from './services/exportService';
 
 // Initialize data
 storageService.init();
@@ -316,6 +317,17 @@ const App: React.FC = () => {
             <p className="text-2xl font-bold">{stats.broken} <span className="text-sm font-normal text-gray-400">máy</span></p>
           </div>
         </div>
+      </div>
+
+      {/* Export Button */}
+      <div className="flex justify-end">
+        <button
+          onClick={() => exportAllStatistics(violations, computers, teacherLogs)}
+          className="flex items-center gap-2 rounded-lg h-11 px-5 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm font-bold shadow-lg hover:shadow-xl hover:scale-105 transition-all"
+        >
+          <span className="material-symbols-outlined">download</span>
+          <span>Xuất thống kê Excel</span>
+        </button>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
@@ -661,7 +673,7 @@ const App: React.FC = () => {
   const renderTeachingView = () => (
     <div className="animate-in fade-in duration-500">
       <div className="flex flex-col gap-1 mb-6">
-        <h1 className="text-3xl font-black tracking-tight text-textPrimary">Sổ Giảng Dạy Điện Tử</h1>
+        <h1 className="text-3xl font-black tracking-tight text-textPrimary">Sổ giảng dạy điện tử</h1>
         <p className="text-textSecondary">Quản lý và ghi chép nhật ký giảng dạy</p>
       </div>
 
