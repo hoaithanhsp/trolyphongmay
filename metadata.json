@@ -1,0 +1,7 @@
+{
+  "name": "LabManager VER2",
+  "description": "Hệ thống quản lý phòng máy tính thông minh dành cho trường học. Quản lý thiết bị, kỷ luật học sinh và sổ giảng dạy điện tử.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
