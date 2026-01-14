@@ -24,6 +24,7 @@ const App: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [currentTime, setCurrentTime] = useState(new Date());
   
   // File upload ref for classes
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -55,6 +56,14 @@ const App: React.FC = () => {
     setStudents(storageService.getStudents());
     setTeacherLogs(storageService.getTeacherLogs());
   }, [refreshTrigger, activeView]);
+
+  // Real-time clock update
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const refreshData = () => setRefreshTrigger(prev => prev + 1);
 
@@ -355,15 +364,19 @@ const App: React.FC = () => {
             </h3>
             <p className="text-white/80 text-sm mb-6 flex items-center gap-2">
               <span className="material-symbols-outlined text-base">schedule</span>
-              Tiết 3 - 4 (08:45 - 10:15)
+              {currentTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} - {currentTime.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
             </p>
-            <div className="flex items-center gap-3 bg-white/10 p-3 rounded-lg backdrop-blur-sm">
-              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                <span className="material-symbols-outlined">person</span>
-              </div>
-              <div>
-                <p className="text-[10px] text-white/70 leading-none">Giáo viên hướng dẫn</p>
-                <p className="font-semibold text-sm">Nguyễn Văn An</p>
+            <div className="flex items-start gap-3 bg-white/10 p-3 rounded-lg backdrop-blur-sm">
+              <img 
+                src="/avatar_thoa.jpg" 
+                alt="Avatar Giáo viên" 
+                className="w-12 h-12 rounded-full object-cover border-2 border-white/30"
+              />
+              <div className="flex flex-col">
+                <p className="text-[10px] text-white/70 leading-none mb-1">Giáo viên phụ trách</p>
+                <p className="font-semibold text-sm">Trần Thị Kim Thoa</p>
+                <p className="text-[11px] text-white/80 mt-1">Trường THPT Hoàng Diệu</p>
+                <p className="text-[10px] text-white/60 leading-tight">Số 1 Mạc Đĩnh Chi, P. Phú Lợi, TP. Cần Thơ</p>
               </div>
             </div>
           </div>
