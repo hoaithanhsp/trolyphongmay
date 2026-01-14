@@ -17,7 +17,7 @@ const seedData = () => {
     for (let i = 1; i <= MOCK_COMPUTERS_COUNT; i++) {
       const id = `M${i.toString().padStart(2, '0')}`;
       let status = ComputerStatus.WORKING;
-      
+
       // Randomly assign some bad statuses for demo
       if (i === 5 || i === 12) status = ComputerStatus.BROKEN;
       if (i === 3 || i === 20) status = ComputerStatus.MAINTENANCE;
@@ -69,6 +69,27 @@ export const storageService = {
     }
   },
 
+  addComputer: (computer: Computer) => {
+    const computers = storageService.getComputers();
+    computers.push(computer);
+    localStorage.setItem(STORAGE_KEYS.COMPUTERS, JSON.stringify(computers));
+  },
+
+  deleteComputer: (id: string) => {
+    let computers = storageService.getComputers();
+    computers = computers.filter(c => c.id !== id);
+    localStorage.setItem(STORAGE_KEYS.COMPUTERS, JSON.stringify(computers));
+  },
+
+  updateComputer: (updatedComputer: Computer) => {
+    const computers = storageService.getComputers();
+    const index = computers.findIndex(c => c.id === updatedComputer.id);
+    if (index !== -1) {
+      computers[index] = updatedComputer;
+      localStorage.setItem(STORAGE_KEYS.COMPUTERS, JSON.stringify(computers));
+    }
+  },
+
   getStudents: (): Student[] => {
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.STUDENTS) || '[]');
   },
@@ -89,9 +110,9 @@ export const storageService = {
     if (index !== -1) {
       // Also update student class names if name changed
       if (classes[index].name !== updatedClass.name) {
-          const students = storageService.getStudents();
-          const updatedStudents = students.map(s => s.class === classes[index].name ? { ...s, class: updatedClass.name } : s);
-          localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(updatedStudents));
+        const students = storageService.getStudents();
+        const updatedStudents = students.map(s => s.class === classes[index].name ? { ...s, class: updatedClass.name } : s);
+        localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(updatedStudents));
       }
       classes[index] = updatedClass;
       localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(classes));
@@ -116,7 +137,7 @@ export const storageService = {
   activateClass: (className: string) => {
     const computers = storageService.getComputers();
     const allStudents = storageService.getStudents();
-    
+
     // Filter students for this class
     let classStudents = allStudents.filter(s => s.class === className);
 
@@ -130,37 +151,37 @@ export const storageService = {
     const hasExplicitAssignments = classStudents.some(s => s.assignedComputerId);
 
     if (hasExplicitAssignments) {
-        // Priority 1: Use explicit assignments from Excel Import (STT -> Machine ID)
-        classStudents.forEach(student => {
-            if (student.assignedComputerId) {
-                const comp = computers.find(c => c.id === student.assignedComputerId);
-                if (comp) {
-                    comp.assignedStudentId = student.id;
-                    comp.assignedStudentName = student.name;
-                }
-            }
-        });
+      // Priority 1: Use explicit assignments from Excel Import (STT -> Machine ID)
+      classStudents.forEach(student => {
+        if (student.assignedComputerId) {
+          const comp = computers.find(c => c.id === student.assignedComputerId);
+          if (comp) {
+            comp.assignedStudentId = student.id;
+            comp.assignedStudentName = student.name;
+          }
+        }
+      });
     } else {
-        // Priority 2: Fallback for manual data - Sort by Name and assign sequentially
-        // Sort A-Z (Vietnamese)
-        classStudents.sort((a, b) => a.name.localeCompare(b.name, 'vi'));
-        
-        classStudents.forEach((student, index) => {
-            if (index < computers.length) {
-                // Determine target ID based on order: 0 -> M01, 1 -> M02...
-                const targetId = `M${(index + 1).toString().padStart(2, '0')}`;
-                const comp = computers.find(c => c.id === targetId);
-                if (comp) {
-                    comp.assignedStudentId = student.id;
-                    comp.assignedStudentName = student.name;
-                    
-                    // Update student record to remember this assignment
-                    student.assignedComputerId = targetId;
-                }
-            }
-        });
-        // Save the updated student assignments back to storage
-        localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(allStudents));
+      // Priority 2: Fallback for manual data - Sort by Name and assign sequentially
+      // Sort A-Z (Vietnamese)
+      classStudents.sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+
+      classStudents.forEach((student, index) => {
+        if (index < computers.length) {
+          // Determine target ID based on order: 0 -> M01, 1 -> M02...
+          const targetId = `M${(index + 1).toString().padStart(2, '0')}`;
+          const comp = computers.find(c => c.id === targetId);
+          if (comp) {
+            comp.assignedStudentId = student.id;
+            comp.assignedStudentName = student.name;
+
+            // Update student record to remember this assignment
+            student.assignedComputerId = targetId;
+          }
+        }
+      });
+      // Save the updated student assignments back to storage
+      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(allStudents));
     }
 
     storageService.saveComputers(computers);
@@ -169,7 +190,7 @@ export const storageService = {
   importStudents: (data: any[], targetClassName: string) => {
     // Get existing students but filter OUT the students of the class we are overwriting
     let currentStudents = storageService.getStudents().filter(s => s.class !== targetClassName);
-    
+
     const newStudents: Student[] = [];
 
     data.forEach((row, index) => {
@@ -181,24 +202,24 @@ export const storageService = {
       if (name) {
         const sttNum = parseInt(stt);
         let computerId = '';
-        
+
         // Map STT to Computer ID (M01, M02...)
         if (!isNaN(sttNum)) {
-           computerId = `M${sttNum.toString().padStart(2, '0')}`;
+          computerId = `M${sttNum.toString().padStart(2, '0')}`;
         } else {
-           // If STT is not a number, fallback to index
-           computerId = `M${(index + 1).toString().padStart(2, '0')}`;
+          // If STT is not a number, fallback to index
+          computerId = `M${(index + 1).toString().padStart(2, '0')}`;
         }
 
         const studentId = crypto.randomUUID();
 
         const newStudent: Student = {
-             id: studentId,
-             name: name.toString().trim(),
-             class: targetClassName,
-             code: code.toString().trim(),
-             assignedComputerId: computerId, // Store mapping
-             totalViolationPoints: 0
+          id: studentId,
+          name: name.toString().trim(),
+          class: targetClassName,
+          code: code.toString().trim(),
+          assignedComputerId: computerId, // Store mapping
+          totalViolationPoints: 0
         };
         newStudents.push(newStudent);
       }
@@ -217,7 +238,7 @@ export const storageService = {
     const violations = storageService.getViolations();
     violations.unshift(record); // Add to top
     localStorage.setItem(STORAGE_KEYS.VIOLATIONS, JSON.stringify(violations));
-    
+
     // Update student points
     const students = storageService.getStudents();
     const studentIndex = students.findIndex(s => s.id === record.studentId);
@@ -236,7 +257,7 @@ export const storageService = {
     logs.unshift(log);
     localStorage.setItem(STORAGE_KEYS.TEACHER_LOGS, JSON.stringify(logs));
   },
-  
+
   // Full reset: clear everything and re-seed (with empty students)
   resetAll: () => {
     localStorage.clear();
